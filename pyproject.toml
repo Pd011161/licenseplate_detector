@@ -1,0 +1,14 @@
+[project]
+name = "7-licenseplate-detector"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.135.3",
+    "opencv-python>=4.13.0.92",
+    "pillow>=12.2.0",
+    "python-multipart>=0.0.24",
+    "ultralytics>=8.4.36",
+    "uvicorn>=0.44.0",
+]

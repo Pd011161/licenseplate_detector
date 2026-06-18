@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Thai Plate Vision</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&family=Bebas+Neue&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:      #0b0d11;
+      --surface: #13161d;
+      --card:    #181c25;
+      --border:  #1e2330;
+      --accent:  #f5a623;
+      --accent2: #ff6b35;
+      --text:    #e8eaf0;
+      --muted:   #5a6175;
+      --green:   #2dce74;
+      --red:     #ff4757;
+      --blue:    #3d9ff5;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Sarabun', sans-serif;
+      min-height: 100vh;
+      padding: 32px 16px 64px;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image:
+        linear-gradient(rgba(245,166,35,.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(245,166,35,.035) 1px, transparent 1px);
+      background-size: 44px 44px;
+      pointer-events: none; z-index: 0;
+    }
+
+    .wrap { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; }
+
+    /* ── Header ── */
+    header {
+      display: flex; align-items: center;
+      justify-content: space-between;
+      margin-bottom: 36px; flex-wrap: wrap; gap: 16px;
+    }
+
+    .brand { display: flex; align-items: center; gap: 12px; }
+
+    .brand-icon {
+      width: 42px; height: 42px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 10px; display: grid; place-items: center;
+      font-size: 20px; box-shadow: 0 0 20px rgba(245,166,35,.3); flex-shrink: 0;
+    }
+
+    .brand-text h1 {
+      font-family: 'Bebas Neue', sans-serif; font-size: 1.8rem; letter-spacing: 3px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text; line-height: 1;
+    }
+
+    .brand-text small { font-size: .72rem; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+
+    .tabs {
+      display: flex; background: var(--surface);
+      border: 1px solid var(--border); border-radius: 12px; padding: 4px; gap: 4px;
+    }
+
+    .tab-btn {
+      padding: 9px 22px; border: none; border-radius: 9px;
+      background: transparent; color: var(--muted);
+      font-family: 'Sarabun', sans-serif; font-size: .9rem; cursor: pointer; transition: all .2s;
+    }
+
+    .tab-btn.active {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #0b0d11; font-weight: 700; box-shadow: 0 2px 12px rgba(245,166,35,.35);
+    }
+
+    /* ── Panels ── */
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    /* ── Upload zone ── */
+    .upload-zone {
+      border: 2px dashed var(--border); border-radius: 16px;
+      background: var(--surface); padding: 44px 24px; text-align: center;
+      cursor: pointer; transition: border-color .25s, box-shadow .25s;
+      position: relative; overflow: hidden;
+    }
+
+    .upload-zone:hover, .upload-zone.drag-over {
+      border-color: var(--accent); box-shadow: 0 0 40px rgba(245,166,35,.1);
+    }
+
+    .upload-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+    .upload-icon { font-size: 2.8rem; margin-bottom: 10px; display: block; }
+    .upload-zone p { color: var(--muted); font-size: 1rem; }
+    .upload-zone small { color: #2e3550; font-size: .8rem; }
+
+    #img-preview-wrap { display: none; margin-top: 14px; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); }
+    #img-preview-wrap img { width: 100%; display: block; max-height: 280px; object-fit: cover; }
+
+    #img-result-section { display: none; margin-top: 24px; animation: fadeUp .4s ease both; }
+
+    .plate-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+      padding: 24px 28px; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 18px;
+    }
+
+    @media(max-width:520px){ .plate-card { grid-template-columns: 1fr; } }
+
+    .field-label { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 8px; display: block; }
+
+    .plate-visual {
+      background: #fff; border-radius: 7px; border: 3px solid #1e2330;
+      padding: 9px 16px; display: inline-block;
+      box-shadow: inset 0 0 0 3px #e8eaf0, 0 4px 16px rgba(0,0,0,.5);
+    }
+
+    .plate-visual::before {
+      content: 'กรมการขนส่งทางบก'; display: block;
+      font-size: 7px; text-align: center; color: #555; margin-bottom: 2px;
+    }
+
+    .plate-text {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: clamp(1.3rem, 4vw, 1.9rem); font-weight: 700;
+      letter-spacing: 4px; display: block; text-align: center; color: #0a0a0a;
+    }
+
+    .province-pill {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(245,166,35,.1); border: 1px solid rgba(245,166,35,.25);
+      border-radius: 50px; padding: 9px 18px; font-size: 1.05rem; font-weight: 600; color: var(--accent);
+    }
+
+    .province-pill .dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--accent); box-shadow: 0 0 8px var(--accent);
+    }
+
+    .detected-img-wrap { border-radius: 12px; overflow: hidden; border: 1px solid var(--border); position: relative; }
+    .detected-img-wrap img { width: 100%; display: block; }
+
+    .img-badge {
+      position: absolute; bottom: 10px; right: 10px;
+      background: rgba(11,13,17,.85); border: 1px solid var(--border); border-radius: 6px;
+      padding: 4px 10px; font-size: .72rem; color: var(--green);
+      backdrop-filter: blur(6px); display: flex; align-items: center; gap: 5px;
+    }
+
+    .img-badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px var(--green); }
+
+    /* ── Video panel ── */
+    .video-layout { display: grid; grid-template-columns: 1fr 380px; gap: 20px; align-items: start; }
+    @media(max-width:820px){ .video-layout { grid-template-columns: 1fr; } }
+
+    .source-tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+
+    .src-btn {
+      flex: 1; padding: 10px; border: 1px solid var(--border); border-radius: 10px;
+      background: var(--surface); color: var(--muted);
+      font-family: 'Sarabun', sans-serif; font-size: .88rem; cursor: pointer; transition: all .2s;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+
+    .src-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(245,166,35,.08); }
+
+    .video-box {
+      background: #000; border: 1px solid var(--border); border-radius: 14px;
+      overflow: hidden; position: relative; aspect-ratio: 16/9;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .video-box video { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+    .scan-line {
+      display: none; position: absolute; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      box-shadow: 0 0 12px var(--accent);
+      animation: scanMove 2.5s linear infinite; z-index: 3;
+    }
+
+    @keyframes scanMove {
+      0%   { top: 0%; opacity: 0; }
+      5%   { opacity: 1; }
+      95%  { opacity: 1; }
+      100% { top: 100%; opacity: 0; }
+    }
+
+    .scan-corners {
+      display: none; position: absolute; inset: 12px; z-index: 3; pointer-events: none;
+    }
+
+    .scan-corners::before, .scan-corners::after,
+    .scan-corners span::before, .scan-corners span::after {
+      content: ''; position: absolute; width: 22px; height: 22px;
+      border-color: var(--accent); border-style: solid; opacity: .7;
+    }
+
+    .scan-corners::before  { top: 0; left: 0; border-width: 2px 0 0 2px; }
+    .scan-corners::after   { top: 0; right: 0; border-width: 2px 2px 0 0; }
+    .scan-corners span::before { bottom: 0; left: 0; border-width: 0 0 2px 2px; }
+    .scan-corners span::after  { bottom: 0; right: 0; border-width: 0 2px 2px 0; }
+
+    .video-placeholder { color: var(--muted); text-align: center; padding: 32px; }
+    .video-placeholder .ph-icon { font-size: 3rem; margin-bottom: 10px; }
+
+    .video-upload-zone {
+      position: absolute; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; background: var(--surface);
+      cursor: pointer; transition: background .2s; z-index: 2;
+    }
+
+    .video-upload-zone:hover { background: #15181f; }
+    .video-upload-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+    .video-upload-zone .ph-icon { font-size: 2.4rem; margin-bottom: 8px; }
+    .video-upload-zone p { color: var(--muted); font-size: .9rem; }
+
+    .video-controls { display: flex; gap: 10px; margin-top: 12px; }
+
+    .ctrl-btn {
+      flex: 1; padding: 12px; border: none; border-radius: 10px;
+      font-family: 'Bebas Neue', sans-serif; font-size: 1rem; letter-spacing: 2px; cursor: pointer; transition: all .2s;
+    }
+
+    .ctrl-btn.primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #0b0d11; box-shadow: 0 3px 16px rgba(245,166,35,.3);
+    }
+
+    .ctrl-btn.primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(245,166,35,.45); }
+    .ctrl-btn.danger { background: rgba(255,71,87,.12); color: var(--red); border: 1px solid rgba(255,71,87,.25); }
+    .ctrl-btn.danger:hover:not(:disabled) { background: rgba(255,71,87,.2); }
+    .ctrl-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+    .config-row {
+      display: flex; align-items: center; gap: 10px; margin-top: 10px;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+      padding: 10px 16px; font-size: .85rem; color: var(--muted);
+    }
+
+    .config-row label { white-space: nowrap; }
+    .config-row input[type=range] { flex: 1; accent-color: var(--accent); }
+    .config-row span { color: var(--accent); font-family: 'Share Tech Mono', monospace; font-size: .9rem; min-width: 40px; }
+
+    .status-bar { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: .8rem; color: var(--muted); }
+
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex-shrink: 0; }
+    .status-dot.running { background: var(--green); box-shadow: 0 0 8px var(--green); animation: pulse 1.4s ease infinite; }
+
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
+
+    /* ── Feed ── */
+    .feed-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+
+    .feed-title {
+      font-family: 'Bebas Neue', sans-serif; letter-spacing: 2px; font-size: 1rem;
+      color: var(--text); display: flex; align-items: center; gap: 8px;
+    }
+
+    .feed-count {
+      background: rgba(245,166,35,.15); border: 1px solid rgba(245,166,35,.3);
+      border-radius: 20px; padding: 2px 10px; font-size: .78rem;
+      color: var(--accent); font-family: 'Share Tech Mono', monospace;
+    }
+
+    .clear-btn {
+      background: none; border: 1px solid var(--border); border-radius: 7px;
+      color: var(--muted); font-family: 'Sarabun', sans-serif; font-size: .78rem;
+      padding: 4px 10px; cursor: pointer; transition: all .2s;
+    }
+
+    .clear-btn:hover { border-color: var(--red); color: var(--red); }
+
+    .feed-list {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+      max-height: 520px; overflow-y: auto;
+      scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+    }
+
+    .feed-empty {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 48px 16px; color: var(--muted); font-size: .88rem; gap: 8px;
+    }
+
+    .feed-empty .empty-icon { font-size: 2rem; opacity: .4; }
+
+    .feed-item {
+      display: flex; align-items: center; gap: 12px; padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      animation: slideIn .3s ease both; cursor: pointer; transition: background .15s;
+    }
+
+    .feed-item:last-child { border-bottom: none; }
+    .feed-item:hover { background: rgba(255,255,255,.02); }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(12px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    .feed-thumb {
+      width: 72px; height: 48px; border-radius: 6px; object-fit: cover;
+      border: 1px solid var(--border); flex-shrink: 0; background: var(--card);
+    }
+
+    .feed-info { flex: 1; min-width: 0; }
+
+    .feed-plate {
+      font-family: 'Share Tech Mono', monospace; font-size: 1rem; font-weight: 700;
+      color: var(--text); letter-spacing: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    .feed-province { font-size: .8rem; color: var(--accent); margin-top: 2px; }
+
+    .feed-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+    .feed-time { font-family: 'Share Tech Mono', monospace; font-size: .72rem; color: var(--muted); }
+
+    .feed-badge {
+      background: rgba(61,159,245,.12); border: 1px solid rgba(61,159,245,.25);
+      border-radius: 20px; padding: 1px 8px; font-size: .68rem; color: var(--blue);
+      font-family: 'Share Tech Mono', monospace;
+    }
+
+    /* ── Modal ── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.85); z-index: 100;
+      place-items: center; backdrop-filter: blur(4px);
+    }
+
+    .modal-overlay.open { display: grid; }
+
+    .modal-box {
+      max-width: 90vw; max-height: 90vh; border-radius: 14px;
+      overflow: hidden; border: 1px solid var(--border); position: relative; animation: fadeUp .25s ease;
+    }
+
+    .modal-box img { display: block; max-width: 90vw; max-height: 85vh; object-fit: contain; }
+
+    .modal-close {
+      position: absolute; top: 10px; right: 10px;
+      background: rgba(0,0,0,.7); border: none; border-radius: 50%;
+      width: 32px; height: 32px; color: #fff; font-size: 1rem; cursor: pointer; display: grid; place-items: center;
+    }
+
+    .modal-plate {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      background: linear-gradient(transparent, rgba(0,0,0,.85));
+      padding: 24px 16px 14px; display: flex; align-items: center; gap: 12px;
+    }
+
+    /* ── Shared ── */
+    .btn-detect {
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      width: 100%; margin-top: 16px; padding: 15px;
+      font-family: 'Bebas Neue', sans-serif; font-size: 1.15rem; letter-spacing: 3px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #0b0d11; border: none; border-radius: 12px; cursor: pointer;
+      transition: transform .15s, box-shadow .15s, opacity .15s;
+      box-shadow: 0 4px 20px rgba(245,166,35,.3);
+    }
+
+    .btn-detect:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(245,166,35,.45); }
+    .btn-detect:disabled { opacity: .45; cursor: not-allowed; }
+
+    .spinner {
+      width: 16px; height: 16px; border: 2px solid rgba(0,0,0,.3);
+      border-top-color: #000; border-radius: 50%;
+      animation: spin .7s linear infinite; display: none;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .error-msg {
+      display: none; margin-top: 12px;
+      background: rgba(255,71,87,.1); border: 1px solid rgba(255,71,87,.3);
+      border-radius: 10px; padding: 12px 16px; color: var(--red); font-size: .88rem;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(14px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    canvas { display: none; }
+
+    .vehicle-row {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .vehicle-index {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.1rem;
+      letter-spacing: 2px;
+      color: var(--accent);
+      background: rgba(245,166,35,.1);
+      border: 1px solid rgba(245,166,35,.2);
+      border-radius: 8px;
+      width: 36px; height: 36px;
+      display: grid; place-items: center;
+      flex-shrink: 0;
+    }
+
+    .vehicle-data { flex: 1; min-width: 0; }
+
+    .rejected-row {
+      background: rgba(255,71,87,.06);
+      border: 1px solid rgba(255,71,87,.2);
+      border-radius: 10px;
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: .85rem;
+    }
+
+    .rejected-raw {
+      font-family: 'Share Tech Mono', monospace;
+      color: var(--red);
+      font-size: .9rem;
+      flex: 1;
+    }
+
+    .rejected-reason {
+      color: var(--muted);
+      font-size: .78rem;
+    }
+
+    .no-vehicle {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 8px; padding: 40px 16px;
+      color: var(--muted); font-size: .9rem;
+    }
+
+    footer { margin-top: 48px; text-align: center; color: #252b3a; font-size: .75rem; letter-spacing: .5px; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <div class="brand-icon">🚗</div>
+      <div class="brand-text">
+        <h1>Thai Plate Vision</h1>
+        <small>ระบบตรวจจับป้ายทะเบียนรถยนต์ด้วย AI</small>
+      </div>
+    </div>
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('image')">📷 ภาพนิ่ง</button>
+      <button class="tab-btn" onclick="switchTab('video')">🎥 วิดีโอ</button>
+    </div>
+  </header>
+
+  <!-- ══ IMAGE PANEL ══ -->
+  <div class="panel active" id="panel-image">
+    <div class="upload-zone" id="dropZone">
+      <input type="file" id="imgFileInput" accept="image/*"/>
+      <span class="upload-icon">📁</span>
+      <p>ลากรูปภาพมาวางที่นี่ หรือคลิกเพื่อเลือกไฟล์</p>
+      <small>รองรับ JPG · PNG · WEBP</small>
+    </div>
+
+    <div id="img-preview-wrap">
+      <img id="img-preview" src="" alt="preview"/>
+    </div>
+
+    <button class="btn-detect" id="imgDetectBtn" onclick="detectImage()" disabled>
+      <div class="spinner" id="imgSpinner"></div>
+      <span id="imgBtnLabel">🔍&nbsp;&nbsp;ตรวจจับทะเบียน</span>
+    </button>
+
+    <div class="error-msg" id="imgError"></div>
+
+    <div id="img-result-section">
+      <!-- count badge -->
+      <div id="imgCountBadge" style="margin-bottom:12px;display:flex;align-items:center;gap:8px;">
+        <span style="font-family:'Bebas Neue',sans-serif;letter-spacing:2px;font-size:.9rem;color:var(--muted);">พบรถทั้งหมด</span>
+        <span id="imgVehicleCount" class="feed-count">0</span>
+        <span style="font-size:.8rem;color:var(--muted);">คัน</span>
+      </div>
+
+      <!-- per-vehicle rows -->
+      <div id="imgVehicleList" style="display:flex;flex-direction:column;gap:10px;margin-bottom:18px;"></div>
+
+      <!-- rejected (debug) -->
+      <div id="imgRejectedWrap" style="display:none;margin-bottom:18px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;cursor:pointer;" onclick="toggleRejected()">
+          <span style="font-family:'Bebas Neue',sans-serif;letter-spacing:2px;font-size:.85rem;color:var(--muted);">⚠️ ตรวจจับได้แต่ไม่สมบูรณ์</span>
+          <span id="imgRejectedCount" style="background:rgba(255,71,87,.15);border:1px solid rgba(255,71,87,.3);border-radius:20px;padding:2px 10px;font-size:.75rem;color:var(--red);font-family:'Share Tech Mono',monospace;">0</span>
+          <span id="rejectedToggleIcon" style="color:var(--muted);margin-left:auto;font-size:.8rem;">▼ แสดง</span>
+        </div>
+        <div id="imgRejectedList" style="display:none;flex-direction:column;gap:6px;"></div>
+      </div>
+
+      <div class="detected-img-wrap">
+        <img id="imgResult" src="" alt="result"/>
+        <span class="img-badge">ตรวจจับสำเร็จ</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ VIDEO PANEL ══ -->
+  <div class="panel" id="panel-video">
+    <div class="video-layout">
+
+      <!-- Left -->
+      <div>
+        <div class="source-tabs">
+          <button class="src-btn active" id="srcWebcam" onclick="setVideoSource('webcam')">📸 กล้อง (Webcam)</button>
+          <button class="src-btn" id="srcFile" onclick="setVideoSource('file')">🎬 ไฟล์วิดีโอ</button>
+        </div>
+
+        <div class="video-box" id="videoBox">
+          <div class="scan-line" id="scanLine"></div>
+          <div class="scan-corners" id="scanCorners"><span></span></div>
+
+          <div class="video-placeholder" id="webcamPlaceholder">
+            <div class="ph-icon">📸</div>
+            <p>กด "เริ่มกล้อง" เพื่อเปิด Webcam</p>
+          </div>
+
+          <div class="video-upload-zone" id="fileUploadZone" style="display:none;">
+            <input type="file" id="vidFileInput" accept="video/*"/>
+            <div class="ph-icon">🎬</div>
+            <p>คลิกหรือลากไฟล์วิดีโอมาวาง</p>
+          </div>
+
+          <video id="videoEl" autoplay muted playsinline style="display:none;"></video>
+        </div>
+
+        <div class="video-controls">
+          <button class="ctrl-btn primary" id="startBtn" onclick="startVideo()">▶ เริ่มกล้อง</button>
+          <button class="ctrl-btn danger"  id="stopBtn"  onclick="stopDetection()" disabled>⏹ หยุด</button>
+        </div>
+
+        <div class="config-row">
+          <label>ความถี่วิเคราะห์:</label>
+          <input type="range" id="intervalSlider" min="500" max="5000" step="250" value="1500" oninput="updateInterval(this.value)"/>
+          <span id="intervalLabel">1.5s</span>
+        </div>
+
+        <div class="status-bar">
+          <div class="status-dot" id="statusDot"></div>
+          <span id="statusText">รอเริ่มต้น</span>
+          <span style="margin-left:auto;font-family:'Share Tech Mono',monospace;font-size:.78rem;color:var(--muted);" id="frameCounter">Frame: 0</span>
+        </div>
+      </div>
+
+      <!-- Right: Feed -->
+      <div>
+        <div class="feed-header">
+          <div class="feed-title">
+            📋 ผลการตรวจจับ
+            <span class="feed-count" id="feedCount">0</span>
+          </div>
+          <button class="clear-btn" onclick="clearFeed()">ล้างทั้งหมด</button>
+        </div>
+
+        <div class="feed-list" id="feedList">
+          <div class="feed-empty" id="feedEmpty">
+            <span class="empty-icon">🔍</span>
+            <span>ยังไม่พบทะเบียนใดๆ</span>
+            <span style="font-size:.75rem">เริ่มวิดีโอเพื่อตรวจจับ</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>Thai Plate Vision · Powered by YOLOv8 + FastAPI</footer>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal" onclick="closeModal()">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <img id="modalImg" src="" alt=""/>
+    <div class="modal-plate">
+      <div class="plate-visual" style="padding:6px 12px;">
+        <span class="plate-text" id="modalPlate" style="font-size:1.1rem;letter-spacing:3px;"></span>
+      </div>
+      <span class="province-pill" style="font-size:.9rem;padding:6px 14px;">
+        <span class="dot"></span><span id="modalProvince"></span>
+      </span>
+    </div>
+  </div>
+</div>
+
+<canvas id="captureCanvas"></canvas>
+<script src="app.js"></script>
+</body>
+</html>
